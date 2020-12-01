@@ -82,7 +82,7 @@ class _Progress(object):
         if fnmatch.fnmatch( osp.basename(file_path), include_pattern):
           try:
             return osp.getsize(file_path)
-          except OSError, err:
+          except OSError as err:
             if 'No such file or directory' in str(err):
               # The files may have diappeared meanwhile
               # 0 is a valid file size

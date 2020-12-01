@@ -58,7 +58,7 @@ def configure(args, path=None):
   paths and exit the process.
 
   """
-  # capture warnings issued by the warnings module  
+  # capture warnings issued by the warnings module
   try:
     # This is not available in python 2.6
     lg.captureWarnings(True)
@@ -140,8 +140,8 @@ def main(argv=None):
     # Finilize the progress bar before printing the final job status
     if progress:
       del(progress)
-    print "Job Status:"
-    print json.dumps(status, indent=2)
+    print ("Job Status:")
+    print (json.dumps(status, indent=2))
 
   elif args["--src"] == 'local' and args["--dest"] != 'local':
     client = config.get_client(args["--dest"])
@@ -167,8 +167,8 @@ def main(argv=None):
     # Finilize the progress bar before printing the final job status
     if progress:
       del(progress)
-    print "Job Status:"
-    print json.dumps(status, indent=2)
+    print ("Job Status:")
+    print (json.dumps(status, indent=2))
   elif args["--src"] != 'local' and args["--dest"] == 'local':
     client = config.get_client(args["--src"])
     if sys.stderr.isatty() and not silent:
@@ -190,7 +190,7 @@ def main(argv=None):
     sys.exit(1)
 
   sys.exit(0)
-  
+
 
 if __name__ == '__main__':
   main()

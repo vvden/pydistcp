@@ -29,6 +29,7 @@ class WebHDFSDistClient(object):
   def __init__(self, src, dst, **kwargs):
   	self.src=src
   	self.dst=dst
+  	self.skipper=0
   	_logger.info('Instantiated %r.', self)
 
   def __repr__(self):
@@ -102,7 +103,11 @@ class WebHDFSDistClient(object):
       else:
         # destination exist
         if not overwrite:
-          raise HdfsError('Destination file exist and Missing overwrite parameter.')
+          # raise HdfsError('Destination file exist and Missing overwrite parameter.')
+          # print('Skipped: dest_file_already_exists: %s overwrite=%s.'%(_dst_path,overwrite))
+          self.skipper +=1
+
+          return
         _tmp_path = '%s.temp-%s' % (_dst_path, int(time.time()))
 
         if checksum == True:
@@ -135,7 +140,7 @@ class WebHDFSDistClient(object):
                 if preserve:
                   curr_src_path=osp.realpath( osp.join( _src_path,osp.relpath(curpath,_tmp_path)) )
                   _preserve(curr_src_path,curpath)
-      
+
         _logger.info('Copying %r to %r.', _src_path, _tmp_path)
 
         if preserve:
@@ -154,7 +159,7 @@ class WebHDFSDistClient(object):
           _logger.info(
             'Copy of %r to %r complete.', _src_path, _dst_path
           )
-      
+
         if preserve:
           _preserve(_src_path,_dst_path)
 
@@ -173,7 +178,7 @@ class WebHDFSDistClient(object):
 
     # First, resolve the list of src files/directories to be copied
     copies = [ copy_file for copy_file in hglob.glob(self.src, src_path) ]
- 
+
     # need to develop a propper pattern based access function
     if len(copies) == 0:
       raise HdfsError('Cloud not resolve source path %s, either it does not exist or can not access it.', src_path)
@@ -192,7 +197,7 @@ class WebHDFSDistClient(object):
           # check if parent exist
           try:
             pstatus = self.dst.status(osp.dirname(dst_path),strict=True)
-          except HdfsError, err:
+          except HdfsError as err:
             raise HdfsError('Parent directory of %r does not exist.', dst_path)
           else:
             # Remote path does not exist, and parent exist
@@ -204,8 +209,9 @@ class WebHDFSDistClient(object):
         # Remote path exists.
         if status['type'] == 'FILE':
           # Remote path exists and is a normal file.
-          if not overwrite:
-            raise HdfsError('Destination path %r already exists.', dst_path)
+          if not overwrite: pass
+            # raise HdfsError('Destination path %r already exists.', dst_path)
+            # print('Destination path %s already exists.' %dst_path)
           # the file is going to be deleted and the destination is going to be created with the same name
           dst_base_path = dst_path
         else:
@@ -220,9 +226,9 @@ class WebHDFSDistClient(object):
           else:
             # destination exists
             dst_base_path = osp.join( dst_path, osp.basename(copy))
-            if not overwrite:
-              raise HdfsError('Destination path %r already exists.', dst_base_path)
-
+            if not overwrite: pass
+              # raise HdfsError('Destination path %r already exists.', dst_base_path)
+              # print ('Destination path %s already exists.'% dst_base_path)
         copy_tuple = dict({ 'src_path' : copy, 'dst_path' : dst_base_path})
       finally:
         tuples.append(copy_tuple)
@@ -324,23 +330,28 @@ class WebHDFSDistClient(object):
       'Size Deleted'     : 0,
       'Files Skipped'    : 0,
       'Size Skipped'     : 0,
+      'Already Exists': 0,
     }
 
     for result in results:
-      file_st = self.src.status(result['src_path'],strict=True)
-      status['Files Expected']+=1
-      status['Size Expected']+=int(file_st['length'])
-      if result['status'] == 'copied':
-        status['Files Copied']+=1
-        status['Size Copied']+=int(file_st['length'])
-      if result['status'] == 'skipped':
-        status['Files Skipped']+=1
-        status['Size Skipped']+=int(file_st['length'])
-      if result['status'] == 'failed':
-        status['Files Failed']+=1
-        status['Size Failed']+=int(file_st['length'])
-        status['Outcome'] = 'Failed'
+      try:
+          file_st = self.src.status(result['src_path'],strict=True)
+          status['Files Expected']+=1
+          status['Size Expected']+=int(file_st['length'])
+          if result['status'] == 'copied':
+            status['Files Copied']+=1
+            status['Size Copied']+=int(file_st['length'])
+          if result['status'] == 'skipped':
+            status['Files Skipped']+=1
+            status['Size Skipped']+=int(file_st['length'])
+          if result['status'] == 'failed':
+            status['Files Failed']+=1
+            status['Size Failed']+=int(file_st['length'])
+            status['Outcome'] = 'Failed'
 
+      except:
+          pass
+      status['Already Exists'] = self.skipper
     return status
 
 # Helpers
@@ -358,4 +369,3 @@ def _map_async(pool_size, func, args):
     return pool.map(func, args)
   else:
     return pool.map_async(func, args).get(1 << 31)
-
